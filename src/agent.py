@@ -11,6 +11,7 @@ if not os.environ.get("HF_HOME") and Path("/app").is_dir():
     os.environ["HF_HUB_CACHE"] = f"{_hf_home}/hub"
     os.environ["HUGGINGFACE_HUB_CACHE"] = f"{_hf_home}/hub"
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -31,14 +32,36 @@ from livekit.agents import (
     function_tool,
     get_job_context,
     inference,
+    llm,
     room_io,
 )
-from livekit.plugins import openai
 from livekit.agents.llm.tool_context import ToolError, ToolFlag
-from livekit.plugins import ai_coustics, silero
+from livekit.plugins import ai_coustics, openai, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent-Jamie-cbf")
+
+# Fallback when local inference returns None (common under load / in Docker).
+_EOU_FALLBACK_PROBABILITY = 1.0
+
+
+class SafeMultilingualModel(MultilingualModel):
+    """Multilingual turn detector that avoids crashing when inference returns None."""
+
+    async def predict_end_of_turn(
+        self,
+        chat_ctx: llm.ChatContext,
+        *,
+        timeout: float | None = 5,
+    ) -> float:
+        try:
+            return await super().predict_end_of_turn(chat_ctx, timeout=timeout)
+        except (AssertionError, asyncio.TimeoutError, RuntimeError) as exc:
+            logger.warning(
+                "EOU prediction unavailable, using fallback (user may still be speaking): %s",
+                exc,
+            )
+            return _EOU_FALLBACK_PROBABILITY
 
 load_dotenv(".env")
 
@@ -257,7 +280,7 @@ async def entrypoint(ctx: JobContext):
         stt=openai.STT(),
         llm=openai.responses.LLM(model="gpt-4o-mini"),
         tts=openai.TTS(),
-        turn_handling=TurnHandlingOptions(turn_detection=MultilingualModel()),
+        turn_handling=TurnHandlingOptions(turn_detection=SafeMultilingualModel()),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,
     )
