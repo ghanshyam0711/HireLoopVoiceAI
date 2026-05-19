@@ -33,9 +33,7 @@ services:
     env_file:
       - .env
     command:
-      - uv
-      - run
-      - python
-      - src/agent.py
-      - start
+      - sh
+      - -c
+      - uv run python src/agent.py download-files && exec uv run python src/agent.py start
     restart: unless-stopped

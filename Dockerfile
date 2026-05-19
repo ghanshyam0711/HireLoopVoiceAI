@@ -27,5 +27,6 @@ RUN uv sync --frozen --no-dev \
 
 EXPOSE 8000
 
-# Override in docker-compose for the LiveKit agent worker.
+# Agent: download-files then start (see docker-compose.yml).
+# API default:
 CMD ["uv", "run", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
