@@ -6,7 +6,10 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=never
+    UV_PYTHON_DOWNLOADS=never \
+    HF_HOME=/app/.cache/huggingface \
+    HF_HUB_CACHE=/app/.cache/huggingface/hub \
+    HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface/hub
 
 WORKDIR /app
 
@@ -14,6 +17,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ffmpeg \
         ca-certificates \
+        libglib2.0-0 \
+        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
@@ -21,10 +26,14 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY pyproject.toml uv.lock ./
 COPY api.py ./
 COPY src ./src
+COPY docker-entrypoint.sh ./
 
-RUN uv sync --frozen --no-dev \
-    && uv run python src/agent.py download-files
+RUN mkdir -p /app/.cache/huggingface/hub \
+    && chmod +x /app/docker-entrypoint.sh \
+    && uv sync --frozen --no-dev \
+    && .venv/bin/python src/agent.py download-files
 
-# LiveKit agent worker (self-hosted LiveKit: set LIVEKIT_URL in .env).
-# Override in docker-compose for the screening API service.
-CMD ["uv", "run", "python", "src/agent.py", "dev"]
+# LiveKit agent worker (self-hosted: set LIVEKIT_URL in .env).
+# Entrypoint runs download-files, then `dev` (override with `start` for production).
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
+CMD ["dev"]

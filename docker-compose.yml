@@ -32,8 +32,4 @@ services:
     build: .
     env_file:
       - .env
-    command:
-      - sh
-      - -c
-      - uv run python src/agent.py download-files && exec uv run python src/agent.py dev
     restart: unless-stopped
