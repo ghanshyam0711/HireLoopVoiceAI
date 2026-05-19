@@ -1,9 +1,12 @@
 import os
+from pathlib import Path
 
 # Hugging Face cache must be set before plugin imports (inference subprocess uses spawn).
-os.environ.setdefault("HF_HOME", "/app/.cache/huggingface")
-os.environ.setdefault("HF_HUB_CACHE", "/app/.cache/huggingface/hub")
-os.environ.setdefault("HUGGINGFACE_HUB_CACHE", "/app/.cache/huggingface/hub")
+if not os.environ.get("HF_HOME") and Path("/app").is_dir():
+    _hf_home = "/app/.cache/huggingface"
+    os.environ["HF_HOME"] = _hf_home
+    os.environ["HF_HUB_CACHE"] = f"{_hf_home}/hub"
+    os.environ["HUGGINGFACE_HUB_CACHE"] = f"{_hf_home}/hub"
 
 import json
 import logging
