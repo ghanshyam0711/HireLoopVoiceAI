@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 
+# Turn-detector uses ONNX + tokenizers only; suppress transformers PyTorch advisory.
+os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
+
 # Hugging Face cache must be set before plugin imports (inference subprocess uses spawn).
 if not os.environ.get("HF_HOME") and Path("/app").is_dir():
     _hf_home = "/app/.cache/huggingface"

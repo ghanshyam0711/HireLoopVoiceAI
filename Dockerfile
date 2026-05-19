@@ -12,7 +12,8 @@ ENV PYTHONUNBUFFERED=1 \
     HF_HUB_CACHE=/app/.cache/huggingface/hub \
     HUGGINGFACE_HUB_CACHE=/app/.cache/huggingface/hub \
     OMP_NUM_THREADS=1 \
-    TOKENIZERS_PARALLELISM=false
+    TOKENIZERS_PARALLELISM=false \
+    TRANSFORMERS_NO_ADVISORY_WARNINGS=1
 
 WORKDIR /app
 
