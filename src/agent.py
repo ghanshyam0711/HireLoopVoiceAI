@@ -1,6 +1,12 @@
+import os
+
+# Hugging Face cache must be set before plugin imports (inference subprocess uses spawn).
+os.environ.setdefault("HF_HOME", "/app/.cache/huggingface")
+os.environ.setdefault("HF_HUB_CACHE", "/app/.cache/huggingface/hub")
+os.environ.setdefault("HUGGINGFACE_HUB_CACHE", "/app/.cache/huggingface/hub")
+
 import json
 import logging
-import os
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin
@@ -225,7 +231,10 @@ class DefaultAgent(Agent):
             logger.exception("failed to submit transcript during shutdown")
 
 
-server = AgentServer()
+server = AgentServer(
+    initialize_process_timeout=120.0,
+    job_memory_warn_mb=800,
+)
 
 
 def prewarm(proc: JobProcess):

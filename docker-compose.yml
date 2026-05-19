@@ -32,4 +32,9 @@ services:
     build: .
     env_file:
       - .env
+    environment:
+      HF_HOME: /app/.cache/huggingface
+      HF_HUB_CACHE: /app/.cache/huggingface/hub
+      OMP_NUM_THREADS: "1"
+    shm_size: "2gb"
     restart: unless-stopped
