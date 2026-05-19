@@ -25,8 +25,6 @@ COPY src ./src
 RUN uv sync --frozen --no-dev \
     && uv run python src/agent.py download-files
 
-EXPOSE 8000
-
-# Agent: download-files then start (see docker-compose.yml).
-# API default:
-CMD ["uv", "run", "uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+# LiveKit agent worker (self-hosted LiveKit: set LIVEKIT_URL in .env).
+# Override in docker-compose for the screening API service.
+CMD ["uv", "run", "python", "src/agent.py", "dev"]
