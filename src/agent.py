@@ -1,19 +1,6 @@
-import os
-from pathlib import Path
-
-# Turn-detector uses ONNX + tokenizers only; suppress transformers PyTorch advisory.
-os.environ.setdefault("TRANSFORMERS_NO_ADVISORY_WARNINGS", "1")
-
-# Hugging Face cache must be set before plugin imports (inference subprocess uses spawn).
-if not os.environ.get("HF_HOME") and Path("/app").is_dir():
-    _hf_home = "/app/.cache/huggingface"
-    os.environ["HF_HOME"] = _hf_home
-    os.environ["HF_HUB_CACHE"] = f"{_hf_home}/hub"
-    os.environ["HUGGINGFACE_HUB_CACHE"] = f"{_hf_home}/hub"
-
-import asyncio
 import json
 import logging
+import os
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urljoin
@@ -32,36 +19,14 @@ from livekit.agents import (
     function_tool,
     get_job_context,
     inference,
-    llm,
     room_io,
 )
+from livekit.plugins import openai
 from livekit.agents.llm.tool_context import ToolError, ToolFlag
-from livekit.plugins import ai_coustics, openai, silero
+from livekit.plugins import ai_coustics, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 logger = logging.getLogger("agent-Jamie-cbf")
-
-# Fallback when local inference returns None (common under load / in Docker).
-_EOU_FALLBACK_PROBABILITY = 1.0
-
-
-class SafeMultilingualModel(MultilingualModel):
-    """Multilingual turn detector that avoids crashing when inference returns None."""
-
-    async def predict_end_of_turn(
-        self,
-        chat_ctx: llm.ChatContext,
-        *,
-        timeout: float | None = 5,
-    ) -> float:
-        try:
-            return await super().predict_end_of_turn(chat_ctx, timeout=timeout)
-        except (AssertionError, asyncio.TimeoutError, RuntimeError) as exc:
-            logger.warning(
-                "EOU prediction unavailable, using fallback (user may still be speaking): %s",
-                exc,
-            )
-            return _EOU_FALLBACK_PROBABILITY
 
 load_dotenv(".env")
 
@@ -260,10 +225,7 @@ class DefaultAgent(Agent):
             logger.exception("failed to submit transcript during shutdown")
 
 
-server = AgentServer(
-    initialize_process_timeout=120.0,
-    job_memory_warn_mb=800,
-)
+server = AgentServer()
 
 
 def prewarm(proc: JobProcess):
@@ -280,7 +242,7 @@ async def entrypoint(ctx: JobContext):
         stt=openai.STT(),
         llm=openai.responses.LLM(model="gpt-4o-mini"),
         tts=openai.TTS(),
-        turn_handling=TurnHandlingOptions(turn_detection=SafeMultilingualModel()),
+        turn_handling=TurnHandlingOptions(turn_detection=MultilingualModel()),
         vad=ctx.proc.userdata["vad"],
         preemptive_generation=True,
     )

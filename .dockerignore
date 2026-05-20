@@ -1,21 +1,13 @@
 .env
-.env.*
-!.env.example
-
-.git
-.gitignore
-
 .venv
-venv
 __pycache__
-*.py[cod]
 .pytest_cache
 .ruff_cache
+*.pyc
+*.pyo
+*.pyd
 *.egg-info
 dist
 build
-
-README.md
-
-# Keep model cache out of build context; it is populated in-image via download-files
-.cache
+.git
+.gitignore

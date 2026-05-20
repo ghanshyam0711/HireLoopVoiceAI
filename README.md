@@ -83,6 +83,24 @@ Start the LiveKit agent worker:
 python src/agent.py
 ```
 
+## Docker
+
+Build the LiveKit agent image:
+
+```bash
+docker build -t conversation-agent .
+```
+
+Run it with your LiveKit and screening environment variables:
+
+```bash
+docker run --rm --env-file .env conversation-agent
+```
+
+The container installs the locked agent dependencies, including
+`livekit-agents[turn-detector]` and `onnxruntime`, so the multilingual turn
+detector used in `src/agent.py` is available at runtime.
+
 ## API Contract
 
 ### Start a Screening Call
@@ -192,7 +210,3 @@ python -m compileall api.py src/agent.py
 - `api.py` only starts the screening call. It does not own transcript evaluation.
 - Transcript evaluation happens through the third-party API configured in the agent.
 - If you change the question payload shape in the upstream screening project, update the agent metadata parsing in `src/agent.py`.
-
-
-python3 your_agent.py download-files               
-                                             
