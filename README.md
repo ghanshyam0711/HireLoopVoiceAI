@@ -210,3 +210,5 @@ python -m compileall api.py src/agent.py
 - `api.py` only starts the screening call. It does not own transcript evaluation.
 - Transcript evaluation happens through the third-party API configured in the agent.
 - If you change the question payload shape in the upstream screening project, update the agent metadata parsing in `src/agent.py`.
+
+<!-- deployment trigger: no functional change -->
