@@ -1,7 +1,9 @@
 import json
 import logging
 import os
+import inspect
 from dataclasses import dataclass
+from pprint import pformat
 from typing import Any
 from urllib.parse import urljoin
 
@@ -95,6 +97,51 @@ def _build_srt_transcript(chat_history) -> str:
         counter += 1
 
     return "\n\n".join(blocks)
+
+
+def _dump_object(value: Any, *, _seen: set[int] | None = None) -> Any:
+    seen = _seen or set()
+    value_id = id(value)
+    if value_id in seen:
+        return "<recursion>"
+
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+
+    if isinstance(value, dict):
+        seen.add(value_id)
+        return {str(key): _dump_object(item, _seen=seen) for key, item in value.items()}
+
+    if isinstance(value, (list, tuple, set, frozenset)):
+        seen.add(value_id)
+        return [_dump_object(item, _seen=seen) for item in value]
+
+    if hasattr(value, "__dict__") or hasattr(value, "__slots__"):
+        seen.add(value_id)
+        snapshot: dict[str, Any] = {"__class__": value.__class__.__name__}
+
+        attributes: dict[str, Any] = {}
+        for name in dir(value):
+            if name.startswith("__") and name.endswith("__"):
+                continue
+
+            try:
+                attr_value = getattr(value, name)
+            except Exception as exc:
+                attributes[name] = f"<error reading attribute: {exc}>"
+                continue
+
+            if inspect.ismethod(attr_value) or inspect.isfunction(attr_value) or inspect.isbuiltin(attr_value):
+                continue
+
+            attributes[name] = _dump_object(attr_value, _seen=seen)
+
+        if attributes:
+            snapshot["attributes"] = attributes
+
+        return snapshot
+
+    return repr(value)
 
 
 class DefaultAgent(Agent):
@@ -232,10 +279,12 @@ def prewarm(proc: JobProcess):
 server.setup_fnc = prewarm
 
 
-@server.rtc_session()
+@server.rtc_session(agent_name="Jamie-cbf")
 async def entrypoint(ctx: JobContext):
-    metadata = ctx.room.metadata or ctx.job.metadata
+    metadata =ctx.job.metadata or ctx.room.metadata
     screening_context = _load_screening_context(metadata)
+    print("Loaded screening context:\n", pformat(_dump_object(screening_context)))
+    
     session = AgentSession(
         stt=openai.STT(),
         llm=openai.responses.LLM(model="gpt-4o-mini"),
