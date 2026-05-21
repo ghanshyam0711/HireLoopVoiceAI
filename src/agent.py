@@ -149,40 +149,27 @@ class DefaultAgent(Agent):
         ).rstrip("/")
         if not base_url:
             raise ToolError("SCREENING_API_BASE_URL is not configured")
-        # self.screening_context.screening_id = '8c667b06-37d7-4c6e-824b-1afc37bf6e06'
+        screening_id = self.screening_context.screening_id.strip()
+        if not screening_id:
+            raise ToolError("screening_id is missing from the screening context")
         transcript_url = urljoin(
             f"{base_url}/",
-            f"screenings/{self.screening_context.screening_id}/transcript",
+            f"screenings/{screening_id}/transcript",
         )
-        logger.info("Transcript handoff URL: %s", transcript_url)
         timeout = aiohttp.ClientTimeout(total=30)
-        payload = {
-            "screening_id": self.screening_context.screening_id,
-            "candidate_name": self.screening_context.candidate_name,
-            "candidate_mobile_no": self.screening_context.candidate_mobile_no,
-            "interview_language": self.screening_context.interview_language,
-            "transcript": transcript,
-        }
-
-        logger.info(
-            "Submitting transcript handoff to endpoint=%s payload=%s",
-            transcript_url,
-            json.dumps(payload, ensure_ascii=True),
-        )
 
         async with aiohttp.ClientSession(timeout=timeout) as session, session.post(
             transcript_url,
-            json=payload,
+            json={
+                "screening_id": screening_id,
+                "candidate_name": self.screening_context.candidate_name,
+                "candidate_mobile_no": self.screening_context.candidate_mobile_no,
+                "interview_language": self.screening_context.interview_language,
+                "transcript": transcript,
+            },
         ) as response:
             response_text = await response.text()
             if response.status >= 400:
-                logger.error(
-                    "Transcript handoff request failed endpoint=%s payload=%s status=%s response=%s",
-                    transcript_url,
-                    json.dumps(payload, ensure_ascii=True),
-                    response.status,
-                    response_text,
-                )
                 raise ToolError(
                     f"transcript handoff failed with status {response.status}: {response_text}"
                 )
@@ -247,13 +234,8 @@ server.setup_fnc = prewarm
 
 @server.rtc_session()
 async def entrypoint(ctx: JobContext):
-    screening_context = _load_screening_context(ctx.job.metadata)
-    screening_api_base_url = (os.getenv("SCREENING_API_BASE_URL") or "").rstrip("/")
-    if screening_api_base_url:
-        logger.info("Startup config SCREENING_API_BASE_URL=%s", screening_api_base_url)
-    else:
-        logger.warning("Startup config SCREENING_API_BASE_URL is not set")
-
+    metadata = ctx.room.metadata or ctx.job.metadata
+    screening_context = _load_screening_context(metadata)
     session = AgentSession(
         stt=openai.STT(),
         llm=openai.responses.LLM(model="gpt-4o-mini"),
