@@ -67,11 +67,11 @@ def _format_srt_timestamp(seconds: float) -> str:
     return f"{hours:02}:{minutes:02}:{seconds_part:02},{milliseconds:03}"
 
 
-def _build_srt_transcript(report) -> str:
+def _build_srt_transcript(chat_history) -> str:
     blocks: list[str] = []
     counter = 1
 
-    for message in report.chat_history.messages():
+    for message in chat_history.messages():
         text = (message.text_content or "").strip()
         if not text:
             continue
@@ -140,8 +140,7 @@ class DefaultAgent(Agent):
 """
 
     def _build_transcript(self) -> str:
-        report = get_job_context().make_session_report(self.session)
-        return _build_srt_transcript(report)
+        return _build_srt_transcript(self.session.history.copy())
 
     async def _submit_transcript(self, transcript: str) -> dict[str, Any]:
         base_url = (
